@@ -3,10 +3,10 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
-from kifwolfoptimizer.optimizer_simple import KieferWolfowitzOptimizerSimple
-from kifwolfoptimizer.optimizer_adaptive import KieferWolfowitzOptimizerAdaptive
-from spsa.optimizer_simple import SPSAOptimizerSimple
-from spsa.optimizer_adaptive import SPSAOptimizerAdaptive
+from kifwolfoptimizer.optimizer_simple import KieferWolfowitzSimple
+from kifwolfoptimizer.optimizer_adaptive import KieferWolfowitzAdaptive
+from spsa.optimizer_simple import SPSASimple
+from spsa.optimizer_adaptive import SPSAAdaptive
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score
@@ -200,10 +200,10 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     num_epochs = N_EPOCHS
     optimizers = {
-        'SPSAOptimizerSimple': (SPSAOptimizerSimple, {'lr': LEARNING_RATE, 'perturbation': 0.05}),
-        'SPSAOptimizerAdaptive': (SPSAOptimizerAdaptive, {'lr': LEARNING_RATE, 'perturbation': 0.05}),
-        'KieferWolfowitzSimple': (KieferWolfowitzOptimizerSimple, {'lr': LEARNING_RATE, 'perturbation': 0.05}),
-        'KieferWolfowitzAdaptive': (KieferWolfowitzOptimizerAdaptive, {'lr': LEARNING_RATE, 'perturbation': 0.05}),
+        'SPSASimple': (SPSASimple, {'lr': LEARNING_RATE, 'perturbation': 0.05}),
+        'SPSAAdaptive': (SPSAAdaptive, {'lr': LEARNING_RATE, 'perturbation': 0.05}),
+        'KieferWolfowitzSimple': (KieferWolfowitzSimple, {'lr': LEARNING_RATE, 'perturbation': 0.05}),
+        'KieferWolfowitzAdaptive': (KieferWolfowitzAdaptive, {'lr': LEARNING_RATE, 'perturbation': 0.05}),
         'Adam': (optim.Adam, {'lr': LEARNING_RATE}),
         'Adagrad': (optim.Adagrad, {'lr': LEARNING_RATE}),
         'SGD': (optim.SGD, {'lr': LEARNING_RATE}),

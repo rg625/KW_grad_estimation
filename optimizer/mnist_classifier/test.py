@@ -90,10 +90,10 @@ def create_prediction_figures(models, test_loader, device):
 def main():
     model_dir = Path('optimizer_models')
     models = {
-        'SPSAOptimizerSimple': load_model(model_dir / 'SPSAOptimizerSimple_model.pth'),
-        'SPSAOptimizerAdaptive': load_model(model_dir / 'SPSAOptimizerAdaptive_model.pth'),
-        'KieferWolfowitzSimple': load_model(model_dir / 'KieferWolfowitzOptimizerSimple_model.pth'),
-        'KieferWolfowitzAdaptive': load_model(model_dir / 'KieferWolfowitzOptimizerAdaptive_model.pth'),
+        'SPSASimple': load_model(model_dir / 'SPSASimple_model.pth'),
+        'SPSAAdaptive': load_model(model_dir / 'SPSAAdaptive_model.pth'),
+        'KieferWolfowitzSimple': load_model(model_dir / 'KieferWolfowitzSimple_model.pth'),
+        'KieferWolfowitzAdaptive': load_model(model_dir / 'KieferWolfowitzAdaptive_model.pth'),
         'Adam': load_model(model_dir / 'Adam_model.pth'),
         'Adagrad': load_model(model_dir / 'Adagrad_model.pth'),
         'SGD': load_model(model_dir / 'SGD_model.pth'),

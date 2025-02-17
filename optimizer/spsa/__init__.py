@@ -1,2 +1,2 @@
-from .optimizer_simple import SPSAOptimizerSimple
-from .optimizer_adaptive import SPSAOptimizerAdaptive
+from .optimizer_simple import SPSASimple
+from .optimizer_adaptive import SPSAAdaptive

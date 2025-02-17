@@ -1,7 +1,7 @@
 import torch
 from torch.optim import Optimizer
 
-class SPSAOptimizerSimple(Optimizer):
+class SPSASimple(Optimizer):
     def __init__(self, params, lr, perturbation=0.05, alpha=0.602, gamma=0.101, a=None, c=None):
         if lr <= 0.0:
             raise ValueError("Invalid learning rate: {}".format(lr))
@@ -14,7 +14,7 @@ class SPSAOptimizerSimple(Optimizer):
             c = perturbation
 
         defaults = dict(lr=lr, perturbation=perturbation, alpha=alpha, gamma=gamma, a=a, c=c)
-        super(SPSAOptimizerSimple, self).__init__(params, defaults)
+        super(SPSASimple, self).__init__(params, defaults)
 
     def step(self, closure):
         """Performs a single optimization step."""

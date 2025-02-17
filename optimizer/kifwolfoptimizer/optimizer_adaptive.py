@@ -3,7 +3,7 @@ import torch
 from torch import Tensor
 from torch.optim import Optimizer
 
-class KieferWolfowitzOptimizerAdaptive(Optimizer):
+class KieferWolfowitzAdaptive(Optimizer):
     def __init__(self, 
                  params, 
                  lr: Union[float, Tensor], 
@@ -28,7 +28,7 @@ class KieferWolfowitzOptimizerAdaptive(Optimizer):
 
         defaults = dict(lr=lr, perturbation=perturbation, betas=betas, eps=eps, 
                         maximize=maximize, foreach=foreach, capturable=capturable, differentiable=differentiable)
-        super(KieferWolfowitzOptimizerAdaptive, self).__init__(params, defaults)
+        super(KieferWolfowitzAdaptive, self).__init__(params, defaults)
 
     def step(self, closure=None):
         """Performs a single optimization step."""

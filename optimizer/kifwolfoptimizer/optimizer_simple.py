@@ -1,7 +1,7 @@
 import torch
 from torch.optim import Optimizer
 
-class KieferWolfowitzOptimizerSimple(Optimizer):
+class KieferWolfowitzSimple(Optimizer):
     def __init__(self, params, lr=None, perturbation=0.05):
         if lr is not None and lr < 0.0:
             raise ValueError("Invalid learning rate: {}".format(lr))
@@ -12,7 +12,7 @@ class KieferWolfowitzOptimizerSimple(Optimizer):
             raise ValueError("Learning rate is required")
         
         defaults = dict(lr=lr, perturbation=perturbation)
-        super(KieferWolfowitzOptimizerSimple, self).__init__(params, defaults)
+        super(KieferWolfowitzSimple, self).__init__(params, defaults)
 
     def step(self, closure=None):
         """Performs a single optimization step."""

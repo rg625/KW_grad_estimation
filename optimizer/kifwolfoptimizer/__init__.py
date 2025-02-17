@@ -1,2 +1,2 @@
-from .optimizer_simple import KieferWolfowitzOptimizerSimple
-from .optimizer_adaptive import KieferWolfowitzOptimizerAdaptive
+from .optimizer_simple import KieferWolfowitzSimple
+from .optimizer_adaptive import KieferWolfowitzAdaptive

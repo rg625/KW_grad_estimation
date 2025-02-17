@@ -2,7 +2,7 @@ from typing import Tuple, Optional, Union
 import torch
 from torch.optim import Optimizer
 
-class SPSAOptimizerAdaptive(Optimizer):
+class SPSAAdaptive(Optimizer):
     def __init__(self, 
                  params, 
                  lr: Union[float, torch.Tensor], 
@@ -27,7 +27,7 @@ class SPSAOptimizerAdaptive(Optimizer):
 
         defaults = dict(lr=lr, perturbation=perturbation, betas=betas, eps=eps, 
                         maximize=maximize, foreach=foreach, capturable=capturable, differentiable=differentiable)
-        super(SPSAOptimizerAdaptive, self).__init__(params, defaults)
+        super(SPSAAdaptive, self).__init__(params, defaults)
 
     def step(self, closure=None):
         """Performs a single optimization step."""
