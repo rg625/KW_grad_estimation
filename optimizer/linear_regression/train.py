@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+import plotly.graph_objs as go
+import plotly.express as px
+import pandas as pd
 import matplotlib.pyplot as plt
 from kifwolfoptimizer.optimizer_simple import KieferWolfowitzSimple
 from kifwolfoptimizer.optimizer_adaptive import KieferWolfowitzAdaptive
@@ -11,9 +14,9 @@ from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score
 from pathlib import Path
-import seaborn as sns
 import time
 import tracemalloc
+import json
 
 # Set the random seed for reproducibility
 torch.manual_seed(42)
@@ -65,7 +68,7 @@ def train_model(optimizer_class, optimizer_params, device, num_epochs=N_EPOCHS):
     test_losses = []
     train_accuracies = []
     test_accuracies = []
-    param_hist = {name: [] for name, _ in model.named_parameters()}
+    param_hist = {f'{name}_{i}': [] for name, param in model.named_parameters() for i in range(param.numel())}
     compute_costs = []
     complexities = []
     times = []
@@ -94,7 +97,6 @@ def train_model(optimizer_class, optimizer_params, device, num_epochs=N_EPOCHS):
             
             batch_time = end_time - start_time
             running_loss += loss.item() * batch_X.size(0)
-            times.append(batch_time)
             
             progress_bar.set_postfix(loss=running_loss / (progress_bar.n + 1))
         
@@ -122,7 +124,9 @@ def train_model(optimizer_class, optimizer_params, device, num_epochs=N_EPOCHS):
         
         # Record parameter values
         for name, param in model.named_parameters():
-            param_hist[name].append(param.data.cpu().numpy().copy())
+            param_data = param.data.cpu().numpy().flatten()
+            for i, value in enumerate(param_data):
+                param_hist[f'{name}_{i}'].append(float(value))
         
         # Measure memory usage
         current, peak = tracemalloc.get_traced_memory()
@@ -141,34 +145,22 @@ def train_model(optimizer_class, optimizer_params, device, num_epochs=N_EPOCHS):
 def plot_results(plots_dir, runs, result_name):
     plots_dir = Path(plots_dir)
     plots_dir.mkdir(parents=True, exist_ok=True)
-    imgpath = plots_dir / f'{result_name}.png'
-    if imgpath.exists():
-        imgpath.unlink()
+    imgpath = plots_dir / f'{result_name}.html'
 
-    if not imgpath.is_file():
-        try:
-            plt.figure(figsize=(16, 9))
-            c_cycler = sns.color_palette()
-            for name, results in runs.items():
-                if result_name in results and len(results[result_name]):
-                    plt.plot(range(1, len(results[result_name]) + 1),
-                             results[result_name],
-                             '.-', label=name)
-            plt.xlabel('Epoch')
-            if 'accuracy' in result_name:
-                plt.ylabel('Accuracy (%)')
-            elif 'cost' in result_name:
-                plt.ylabel('Memory Usage (MB)')
-            elif 'complexity' in result_name:
-                plt.ylabel('Complexity (O(n))')
-            else:
-                plt.ylabel(result_name.split('_')[1].capitalize())
-            plt.title(result_name.replace('_', ' ').capitalize())
-            plt.legend()
-            plt.savefig(imgpath)
-            plt.close()
-        except Exception as e:
-            print(f"Failed to plot {result_name}: {e}")
+    fig = go.Figure()
+    for name, results in runs.items():
+        if result_name in results and len(results[result_name]):
+            fig.add_trace(go.Scatter(x=list(range(1, len(results[result_name]) + 1)),
+                                     y=results[result_name],
+                                     mode='lines+markers',
+                                     name=name))
+
+    fig.update_layout(title=result_name.replace('_', ' ').capitalize(),
+                      xaxis_title='Epoch',
+                      yaxis_title='Memory Usage (MB)' if 'cost' in result_name else 'Complexity (O(n))' if 'complexity' in result_name else 'Accuracy (%)' if 'accuracy' in result_name else result_name.split('_')[1].capitalize(),
+                      legend_title='Optimizers')
+
+    fig.write_html(str(imgpath))
 
 def plot_param_changes(plots_dir, all_param_hist, true_params):
     plots_dir = Path(plots_dir)
@@ -177,24 +169,19 @@ def plot_param_changes(plots_dir, all_param_hist, true_params):
     for param_name in true_params:
         true_values = true_params[param_name]
         for i in range(len(true_values)):
-            plt.figure(figsize=(16, 9))
+            fig = go.Figure()
             for optimizer_name, param_hist in all_param_hist.items():
-                values = np.array(param_hist[param_name])
-                if param_name == 'linear.bias':
-                    plt.plot(values, label=f'{optimizer_name} {param_name}')
-                else:
-                    plt.plot(values.squeeze()[:, i], label=f'{optimizer_name} {param_name}_{i}')
-            if param_name == 'linear.bias':
-                plt.axhline(y=true_values[0], color='r', linestyle='--', label=f'True {param_name}')
-            else:
-                plt.axhline(y=true_values[i], color='r', linestyle='--', label=f'True {param_name}_{i}')
-            plt.xlabel('Epoch')
-            plt.ylabel('Parameter Value')
-            plt.title(f'{param_name}_{i} changes for all optimizers')
-            plt.legend()
-            plt.savefig(plots_dir / f'{param_name}_{i}_changes.png')
-            plt.clf()
-            plt.close()
+                param_key = f'{param_name}_{i}'
+                if param_key in param_hist:
+                    fig.add_trace(go.Scatter(y=param_hist[param_key], mode='lines+markers', name=f'{optimizer_name} {param_key}'))
+
+            fig.add_trace(go.Scatter(y=[true_values[i]]*len(param_hist[param_key]), mode='lines', line=dict(dash='dash'), name=f'True {param_name}_{i}'))
+
+            fig.update_layout(title=f'{param_name}_{i} changes for all optimizers',
+                              xaxis_title='Epoch',
+                              yaxis_title='Parameter Value')
+
+            fig.write_html(str(plots_dir / f'{param_name}_{i}_changes.html'))
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -219,6 +206,8 @@ def main():
     all_param_hist = {}
     true_params = {'linear.weight': TRUE_WEIGHTS, 'linear.bias': np.array([TRUE_BIAS])}
     
+    results = {}
+    
     for name, (optimizer_class, optimizer_params) in optimizers.items():
         print(f'Training with {name} optimizer...')
         train_losses, test_losses, train_accuracies, test_accuracies, param_hist, compute_costs, complexities, times, model = train_model(optimizer_class, optimizer_params, device, num_epochs)
@@ -230,59 +219,52 @@ def main():
         all_complexities[name] = {'complexities': complexities}
         all_times[name] = {'times': times}
         all_param_hist[name] = param_hist
+        
+        results[name] = {
+            'train_losses': train_losses,
+            'test_losses': test_losses,
+            'train_accuracies': train_accuracies,
+            'test_accuracies': test_accuracies,
+            'compute_costs': compute_costs,
+            'complexities': complexities,
+            'times': times,
+            'param_hist': {k: v for k, v in param_hist.items()}  # Convert to lists
+        }
 
         # Create directory for the optimizer
         optimizer_dir = Path(f'optimizer_plots/linear_regression/linear_regression/{name}')
         optimizer_dir.mkdir(parents=True, exist_ok=True)
 
         # Plot individual loss
-        plt.plot(train_losses, label='Train Loss')
-        plt.plot(test_losses, label='Test Loss')
-        plt.xlabel('Epoch')
-        plt.ylabel('Loss')
-        plt.title(f'Loss vs Epoch for {name} Optimizer')
-        plt.legend()
-        plt.savefig(optimizer_dir / f'{name}_optimizer_loss.png')
-        plt.clf()
+        df = pd.DataFrame({'Epoch': range(1, num_epochs + 1), 'Train Loss': train_losses, 'Test Loss': test_losses})
+        fig = px.line(df, x='Epoch', y=['Train Loss', 'Test Loss'], title=f'Loss vs Epoch for {name} Optimizer')
+        fig.write_html(str(optimizer_dir / f'{name}_optimizer_loss.html'))
 
         # Plot individual accuracy
-        plt.plot(train_accuracies, label='Train Accuracy')
-        plt.plot(test_accuracies, label='Test Accuracy')
-        plt.xlabel('Epoch')
-        plt.ylabel('Accuracy (%)')
-        plt.title(f'Accuracy vs Epoch for {name} Optimizer')
-        plt.legend()
-        plt.savefig(optimizer_dir / f'{name}_optimizer_accuracy.png')
-        plt.clf()
+        df = pd.DataFrame({'Epoch': range(1, num_epochs + 1), 'Train Accuracy': train_accuracies, 'Test Accuracy': test_accuracies})
+        fig = px.line(df, x='Epoch', y=['Train Accuracy', 'Test Accuracy'], title=f'Accuracy vs Epoch for {name} Optimizer')
+        fig.write_html(str(optimizer_dir / f'{name}_optimizer_accuracy.html'))
 
         # Plot individual compute cost
-        plt.plot(compute_costs, label='Compute Cost')
-        plt.xlabel('Epoch')
-        plt.ylabel('Memory Usage (MB)')
-        plt.title(f'Compute Cost vs Epoch for {name} Optimizer')
-        plt.legend()
-        plt.savefig(optimizer_dir / f'{name}_optimizer_compute_cost.png')
-        plt.clf()
+        df = pd.DataFrame({'Epoch': range(1, num_epochs + 1), 'Compute Cost': compute_costs})
+        fig = px.line(df, x='Epoch', y=['Compute Cost'], title=f'Compute Cost vs Epoch for {name} Optimizer')
+        fig.write_html(str(optimizer_dir / f'{name}_optimizer_compute_cost.html'))
 
         # Plot individual complexity
-        plt.plot(complexities, label='Complexity')
-        plt.xlabel('Epoch')
-        plt.ylabel('Complexity (O(n))')
-        plt.title(f'Complexity vs Epoch for {name} Optimizer')
-        plt.legend()
-        plt.savefig(optimizer_dir / f'{name}_optimizer_complexity.png')
-        plt.clf()
-        plt.close()
+        df = pd.DataFrame({'Epoch': range(1, num_epochs + 1), 'Complexity': complexities})
+        fig = px.line(df, x='Epoch', y=['Complexity'], title=f'Complexity vs Epoch for {name} Optimizer')
+        fig.write_html(str(optimizer_dir / f'{name}_optimizer_complexity.html'))
 
         # Plot individual time
-        plt.plot(times, label='Time')
-        plt.xlabel('Epoch')
-        plt.ylabel('Time (seconds)')
-        plt.title(f'Time vs Epoch for {name} Optimizer')
-        plt.legend()
-        plt.savefig(optimizer_dir / f'{name}_optimizer_time.png')
-        plt.clf()
-        plt.close()
+        df = pd.DataFrame({'Epoch': range(1, num_epochs + 1), 'Time': times})
+        fig = px.line(df, x='Epoch', y=['Time'], title=f'Time vs Epoch for {name} Optimizer')
+        fig.write_html(str(optimizer_dir / f'{name}_optimizer_time.html'))
+
+    # Save results to a JSON file
+    results["true_params"] = {k: {f'{k}_{i}': float(v[i]) for i in range(len(v))} for k, v in true_params.items()}  # Convert ndarrays to lists
+    with open('optimizer_results.json', 'w') as f:
+        json.dump(results, f, indent=4)
+
     # Plot parameter changes for all optimizers
     plot_param_changes('optimizer_plots/linear_regression/parameters', all_param_hist, true_params)
 
